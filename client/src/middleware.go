@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -49,6 +50,11 @@ func (rp *RewriteProxy) Handler() http.Handler {
 	return rp.proxy
 }
 
+var (
+	pathAttrRE   = regexp.MustCompile(`((?:src|href|action|content|data-src|to)=["'])/([^"'\s>]*["'])`)
+	inlinePathRE = regexp.MustCompile(`(["'\(\s])/((?:assets|api|ws|socket|_next|static|site)[^"'\s,\)\]]*)`)
+)
+
 func (rp *RewriteProxy) rewriteBody(resp *http.Response, prefix string) {
 	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
@@ -58,22 +64,12 @@ func (rp *RewriteProxy) rewriteBody(resp *http.Response, prefix string) {
 
 	bodyStr := string(body)
 
-	replacements := []struct{ old, new string }{
-		{`src="/`, `src="` + prefix + `/`},
-		{`href="/`, `href="` + prefix + `/`},
-		{`action="/`, `action="` + prefix + `/`},
-		{`"/assets/`, `"` + prefix + `/assets/`},
-		{`"/api/`, `"` + prefix + `/api/`},
-		{`"/ws`, `"` + prefix + `/ws`},
-		{`"/socket`, `"` + prefix + `/socket`},
-		{`" /site.webmanifest`, `" ` + prefix + `/site.webmanifest`},
+	if strings.Contains(bodyStr, prefix+"/"+prefix) {
+		return
 	}
 
-	for _, rp := range replacements {
-		bodyStr = strings.ReplaceAll(bodyStr, rp.old, rp.new)
-	}
-
-	bodyStr = strings.ReplaceAll(bodyStr, prefix+`//`, prefix+`/`)
+	bodyStr = pathAttrRE.ReplaceAllString(bodyStr, `${1}`+prefix+`/$2`)
+	bodyStr = inlinePathRE.ReplaceAllString(bodyStr, `${1}`+prefix+`/$2`)
 
 	resp.Body = io.NopCloser(bytes.NewReader([]byte(bodyStr)))
 	resp.ContentLength = int64(len(bodyStr))

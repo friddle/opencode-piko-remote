@@ -1,0 +1,6 @@
+client/dist/
+client/src/embed/opencode.gz
+server/dist/
+.vscode
+.DS_Store
+dist/

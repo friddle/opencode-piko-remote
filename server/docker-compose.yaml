@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  opencode-piko-server:
+    build:
+      context: .
+      dockerfile: build/Dockerfile
+    container_name: opencode-piko-server
+    environment:
+      - PIKO_UPSTREAM_PORT=8022
+      - LISTEN_PORT=8088
+    ports:
+      - "8022:8022"  # piko上游端口
+      - "8088:8088"  # HTTP访问端口
+    volumes:
+      - nginx_logs:/var/log/nginx
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

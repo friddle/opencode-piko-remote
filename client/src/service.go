@@ -3,6 +3,7 @@ package src
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -39,16 +40,25 @@ func (sm *ServiceManager) Start() error {
 		return fmt.Errorf("ensure opencode: %w", err)
 	}
 
-	port := FindAvailablePort()
+	ocPort := FindAvailablePort()
 	fmt.Printf("Starting opencode-piko\n")
 	fmt.Printf("  Name:    %s\n", sm.config.Name)
 	fmt.Printf("  Remote:  %s\n", sm.config.Remote)
-	fmt.Printf("  Port:    %d\n", port)
+	fmt.Printf("  Port:    %d\n", ocPort)
 	if sm.config.Project != "" {
 		fmt.Printf("  Project: %s\n", sm.config.Project)
 	}
 
-	oc := NewOpencodeProcess(sm.config, binPath, port)
+	oc := NewOpencodeProcess(sm.config, binPath, ocPort)
+	proxyPort := FindAvailablePort()
+
+	rp, err := NewRewriteProxy(
+		fmt.Sprintf("http://127.0.0.1:%d", ocPort),
+		sm.config.Name,
+	)
+	if err != nil {
+		return fmt.Errorf("create rewrite proxy: %w", err)
+	}
 
 	var g run.Group
 
@@ -57,15 +67,31 @@ func (sm *ServiceManager) Start() error {
 		if err := oc.Start(sm.ctx); err != nil {
 			return err
 		}
-		fmt.Printf("opencode web started on port %d\n", port)
+		fmt.Printf("opencode web started on port %d\n", ocPort)
 		return oc.Wait()
 	}, func(error) {
 		oc.Stop()
 	})
 
-	// piko agent
+	// rewrite proxy
+	proxySrv := &http.Server{
+		Addr:    fmt.Sprintf("127.0.0.1:%d", proxyPort),
+		Handler: rp.Handler(),
+	}
 	g.Add(func() error {
-		return sm.startPiko(port)
+		fmt.Printf("rewrite proxy on port %d -> %d\n", proxyPort, ocPort)
+		go func() {
+			<-sm.ctx.Done()
+			proxySrv.Close()
+		}()
+		return proxySrv.ListenAndServe()
+	}, func(error) {
+		proxySrv.Close()
+	})
+
+	// piko agent (connects to proxy, not directly to opencode)
+	g.Add(func() error {
+		return sm.startPiko(proxyPort)
 	}, func(error) {
 		sm.cancel()
 	})

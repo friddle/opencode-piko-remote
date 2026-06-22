@@ -44,6 +44,7 @@ func (o *OpencodeProcess) Start(ctx context.Context) error {
 	if o.config.User != "" {
 		env = append(env, fmt.Sprintf("OPENCODE_SERVER_USERNAME=%s", o.config.User))
 	}
+	env = append(env, fmt.Sprintf("OPENCODE_WEB_BASE=/%s", o.config.Name))
 	o.cmd.Env = env
 
 	if err := o.cmd.Start(); err != nil {

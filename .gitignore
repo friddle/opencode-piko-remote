@@ -4,3 +4,4 @@ server/dist/
 .vscode
 .DS_Store
 dist/
+.playwright-mcp/

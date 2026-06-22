@@ -1,6 +1,12 @@
 # opencode-piko-remote
 
+[English](README.md) | [简体中文](README_ZH.md)
+
 Expose [opencode](https://github.com/anomalyco/opencode) web interface remotely through [piko](https://github.com/andydunstall/piko) tunnel.
+
+## Screenshot
+
+![opencode-piko interface](docs/screenshot.png)
 
 ## Architecture
 
@@ -11,6 +17,21 @@ Expose [opencode](https://github.com/anomalyco/opencode) web interface remotely 
 The client binary embeds opencode, starts it in web mode, and connects through piko to a remote server — making your AI coding assistant accessible from anywhere.
 
 ## Quick Start
+
+### Install (one-liner)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/friddle/opencode-piko-remote/main/install.sh | bash
+```
+
+This detects your OS/arch, downloads the latest binary to `~/.opencode-piko/bin/`, and adds it to your `$PATH`.
+
+```bash
+# Specific version
+curl -fsSL https://raw.githubusercontent.com/friddle/opencode-piko-remote/main/install.sh | bash -s -- --version 0.1.0
+```
+
+Restart your shell, then:
 
 ### Client (on your dev machine)
 

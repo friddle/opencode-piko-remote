@@ -15,9 +15,21 @@ var (
 	GitCommit = ""
 )
 
+var (
+	nameFlag       string
+	remoteFlag     string
+	serverPortFlag int
+	userFlag       string
+	passFlag       string
+	autoExitFlag   bool
+	foregroundFlag bool
+)
+
 func main() {
 	rootCmd := makeRootCmd()
 	rootCmd.AddCommand(makeUpgradeCmd())
+	rootCmd.AddCommand(makeStopCmd())
+	rootCmd.AddCommand(makeStatusCmd())
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -25,57 +37,52 @@ func main() {
 }
 
 func makeRootCmd() *cobra.Command {
-	var (
-		name       string
-		remote     string
-		serverPort int
-		user       string
-		pass       string
-		autoExit   bool
-	)
-
 	cmd := &cobra.Command{
 		Use:   "opencode-piko [project]",
 		Short: "Expose opencode web through piko tunnel",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			project := ""
-			if len(args) > 0 {
-				project = args[0]
-			}
-
-			config := &src.Config{
-				Name:       name,
-				Remote:     remote,
-				ServerPort: serverPort,
-				User:       user,
-				Pass:       pass,
-				Project:    project,
-				AutoExit:   autoExit,
-			}
-
-			if err := config.Validate(); err != nil {
-				return err
-			}
-
-			manager := src.NewServiceManager(config)
-			return manager.Start()
-		},
+		RunE:  run,
 	}
 
-	cmd.Flags().StringVar(&name, "name", "", "Piko endpoint name (required)")
-	cmd.Flags().StringVar(&remote, "remote", "", "Piko server address host:port (required)")
-	cmd.Flags().IntVar(&serverPort, "server-port", 8022, "Piko upstream port")
-	cmd.Flags().StringVar(&user, "user", "opencode", "Auth username")
-	cmd.Flags().StringVar(&pass, "pass", "", "Auth password")
-	cmd.Flags().BoolVar(&autoExit, "auto-exit", true, "Auto exit after 24 hours")
-
-	cmd.MarkFlagRequired("name")
-	cmd.MarkFlagRequired("remote")
+	cmd.Flags().StringVar(&nameFlag, "name", "", "Piko endpoint name (default: <dir>-<random4>)")
+	cmd.Flags().StringVar(&remoteFlag, "remote", "", "Piko server address host:port (default: clauded.friddle.me)")
+	cmd.Flags().IntVar(&serverPortFlag, "server-port", 8022, "Piko upstream port")
+	cmd.Flags().StringVar(&userFlag, "user", "opencode", "Auth username")
+	cmd.Flags().StringVar(&passFlag, "pass", "", "Auth password")
+	cmd.Flags().BoolVar(&autoExitFlag, "auto-exit", true, "Auto exit after 24 hours")
+	cmd.Flags().BoolVarP(&foregroundFlag, "foreground", "f", false, "Run in foreground (default: daemon)")
 
 	cmd.Version = Version
 
 	return cmd
+}
+
+func run(cmd *cobra.Command, args []string) error {
+	project := ""
+	if len(args) > 0 {
+		project = args[0]
+	}
+
+	if !foregroundFlag {
+		return daemonize(cmd, args)
+	}
+
+	config := &src.Config{
+		Name:       nameFlag,
+		Remote:     remoteFlag,
+		ServerPort: serverPortFlag,
+		User:       userFlag,
+		Pass:       passFlag,
+		Project:    project,
+		AutoExit:   autoExitFlag,
+	}
+
+	if err := config.Validate(); err != nil {
+		return err
+	}
+
+	manager := src.NewServiceManager(config)
+	return manager.Start()
 }
 
 func makeUpgradeCmd() *cobra.Command {

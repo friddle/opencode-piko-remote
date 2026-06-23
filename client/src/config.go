@@ -2,10 +2,15 @@ package src
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
+
+const DefaultRemote = "clauded.friddle.me"
 
 type Config struct {
 	Name       string
@@ -17,13 +22,23 @@ type Config struct {
 	AutoExit   bool
 }
 
-func (c *Config) Validate() error {
-	if c.Name == "" {
-		return fmt.Errorf("name is required")
-	}
+func (c *Config) ApplyDefaults() {
 	if c.Remote == "" {
-		return fmt.Errorf("remote is required")
+		c.Remote = DefaultRemote
 	}
+	if c.Name == "" {
+		dir := c.Project
+		if dir == "" {
+			dir, _ = os.Getwd()
+		}
+		base := filepath.Base(dir)
+		suffix := fmt.Sprintf("%04d", rand.Intn(10000))
+		c.Name = base + "-" + suffix
+	}
+}
+
+func (c *Config) Validate() error {
+	c.ApplyDefaults()
 	return nil
 }
 

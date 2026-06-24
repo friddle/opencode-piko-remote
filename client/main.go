@@ -22,7 +22,7 @@ var (
 	userFlag       string
 	passFlag       string
 	autoExitFlag   bool
-	foregroundFlag bool
+	daemonFlag     bool
 )
 
 func main() {
@@ -50,7 +50,7 @@ func makeRootCmd() *cobra.Command {
 	cmd.Flags().StringVar(&userFlag, "user", "opencode", "Auth username")
 	cmd.Flags().StringVar(&passFlag, "pass", "", "Auth password")
 	cmd.Flags().BoolVar(&autoExitFlag, "auto-exit", true, "Auto exit after 24 hours")
-	cmd.Flags().BoolVarP(&foregroundFlag, "foreground", "f", false, "Run in foreground (default: daemon)")
+	cmd.Flags().BoolVarP(&daemonFlag, "daemon", "d", false, "Run as daemon (background)")
 
 	cmd.Version = Version
 
@@ -63,7 +63,7 @@ func run(cmd *cobra.Command, args []string) error {
 		project = args[0]
 	}
 
-	if !foregroundFlag {
+	if daemonFlag {
 		return daemonize(cmd, args)
 	}
 
@@ -80,6 +80,11 @@ func run(cmd *cobra.Command, args []string) error {
 	if err := config.Validate(); err != nil {
 		return err
 	}
+
+	fmt.Printf("Starting opencode-piko\n")
+	fmt.Printf("  Name:       %s\n", config.Name)
+	printAccessInfo(config)
+	fmt.Printf("  (Tip: use --daemon or -d to run in background)\n")
 
 	manager := src.NewServiceManager(config)
 	return manager.Start()

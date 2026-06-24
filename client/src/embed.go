@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 )
@@ -29,12 +30,16 @@ func GetOpencodeBinPath() string {
 func EnsureOpencode() (string, error) {
 	binPath := GetOpencodeBinPath()
 
-	if _, err := os.Stat(binPath); err == nil {
-		return binPath, nil
+	// Always install embedded opencode to ensure correct version
+	if err := installEmbeddedOpencode(binPath); err != nil {
+		// If install fails but binary exists, use it as fallback
+		if _, err := os.Stat(binPath); err == nil {
+			return binPath, nil
+		}
+		return "", err
 	}
 
-	fmt.Printf("Installing embedded opencode to %s...\n", binPath)
-	return binPath, installEmbeddedOpencode(binPath)
+	return binPath, nil
 }
 
 func installEmbeddedOpencode(binPath string) error {
@@ -67,5 +72,12 @@ func installEmbeddedOpencode(binPath string) error {
 	}
 
 	fmt.Printf("Installed opencode to %s\n", binPath)
+
+	// On macOS, re-sign the binary to fix code signature after decompression
+	if runtime.GOOS == "darwin" {
+		exec.Command("codesign", "--force", "--sign", "-", binPath).Run()
+		exec.Command("xattr", "-cr", binPath).Run()
+	}
+
 	return nil
 }

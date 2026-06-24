@@ -24,7 +24,7 @@ all: build
 build: download-opencode
 	@echo "Building ${BINARY_NAME} for $$(go env GOOS)/$$(go env GOARCH)..."
 	@mkdir -p ${DIST_DIR}
-	CGO_ENABLED=0 ${GO} build ${LDFLAGS} -o ${DIST_DIR}/${BINARY_NAME} ./main.go
+	CGO_ENABLED=0 ${GO} build ${LDFLAGS} -o ${DIST_DIR}/${BINARY_NAME} .
 	@echo "Done: ${DIST_DIR}/${BINARY_NAME}"
 
 .PHONY: build-all
@@ -46,7 +46,7 @@ _build-single:
 	if [ "$(TARGET_OS)" = "windows" ]; then suffix=".exe"; fi; \
 	echo "Compiling $(TARGET_OS)/$(TARGET_ARCH)..."; \
 	CGO_ENABLED=0 GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) ${GO} build ${LDFLAGS} \
-		-o ${DIST_DIR}/${BINARY_NAME}-$(TARGET_OS)-$(TARGET_ARCH)$$suffix ./main.go
+		-o ${DIST_DIR}/${BINARY_NAME}-$(TARGET_OS)-$(TARGET_ARCH)$$suffix .
 
 .PHONY: build-opencode
 build-opencode:
@@ -77,7 +77,7 @@ docker: download-opencode
 	target_arch=$${TARGET_ARCH:-amd64}; \
 	echo "Building Docker image for $$target_os/$$target_arch..."; \
 	CGO_ENABLED=0 GOOS=$$target_os GOARCH=$$target_arch ${GO} build ${LDFLAGS} \
-		-o ${DIST_DIR}/${BINARY_NAME}-$$target_os-$$target_arch ./main.go; \
+		-o ${DIST_DIR}/${BINARY_NAME}-$$target_os-$$target_arch .; \
 	docker build --platform $$target_os/$$target_arch \
 		--build-arg BINARY=${DIST_DIR}/${BINARY_NAME}-$$target_os-$$target_arch \
 		--build-arg http_proxy="" --build-arg https_proxy="" \

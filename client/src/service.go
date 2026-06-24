@@ -135,9 +135,9 @@ func (sm *ServiceManager) Start() error {
 	}
 
 	if sm.config.Pass != "" {
-		fmt.Printf("  Auth:    %s / %s\n", sm.config.User, sm.config.Pass)
+		fmt.Printf("  Auth:      %s / %s\n", sm.config.User, sm.config.Pass)
 	} else {
-		fmt.Printf("  Auth:    disabled\n")
+		fmt.Printf("  Auth:      disabled\n")
 	}
 	fmt.Printf("Press Ctrl+C to stop\n")
 

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"syscall"
 
+	"opencode-piko-remote/src"
+
 	"github.com/spf13/cobra"
 )
 
@@ -52,14 +54,57 @@ func isRunning(pid int) bool {
 	return process.Signal(syscall.Signal(0)) == nil
 }
 
-func daemonize(cmd *cobra.Command, args []string) error {
-	execPath, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("find executable: %w", err)
+func printAccessInfo(config *src.Config) {
+	remote := config.Remote
+	if len(remote) > 0 && remote[0] != ':' {
+		parts := splitHostPort(remote)
+		scheme := "https"
+		fmt.Printf("  Remote:     %s://%s\n", scheme, remote)
+		fmt.Printf("  Access URL: %s://%s/%s/\n", scheme, parts, config.Name)
 	}
+	if config.Pass != "" {
+		fmt.Printf("  Auth:       %s / %s\n", config.User, config.Pass)
+	} else {
+		fmt.Printf("  Auth:       disabled\n")
+	}
+}
+
+func splitHostPort(addr string) string {
+	for i := len(addr) - 1; i >= 0; i-- {
+		if addr[i] == ':' {
+			return addr[:i]
+		}
+		if addr[i] < '0' || addr[i] > '9' {
+			break
+		}
+	}
+	return addr
+}
+
+func daemonize(cmd *cobra.Command, args []string) error {
+	project := ""
+	if len(args) > 0 {
+		project = args[0]
+	}
+
+	config := &src.Config{
+		Name:       nameFlag,
+		Remote:     remoteFlag,
+		ServerPort: serverPortFlag,
+		User:       userFlag,
+		Pass:       passFlag,
+		Project:    project,
+		AutoExit:   autoExitFlag,
+	}
+	config.Validate()
 
 	if pid, err := readPID(); err == nil && isRunning(pid) {
 		return fmt.Errorf("daemon already running (PID %d), use 'opencode-piko stop' first", pid)
+	}
+
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("find executable: %w", err)
 	}
 
 	logFile, err := os.OpenFile(logFilePath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -67,12 +112,14 @@ func daemonize(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("open log file: %w", err)
 	}
 
-	daemonArgs := []string{"--foreground"}
-	daemonArgs = append(daemonArgs, args...)
-	daemonArgs = append(daemonArgs, fmt.Sprintf("--name=%s", nameFlag))
-	daemonArgs = append(daemonArgs, fmt.Sprintf("--remote=%s", remoteFlag))
-	daemonArgs = append(daemonArgs, fmt.Sprintf("--pass=%s", passFlag))
-	daemonArgs = append(daemonArgs, fmt.Sprintf("--user=%s", userFlag))
+	daemonArgs := []string{}
+	if project != "" {
+		daemonArgs = append(daemonArgs, project)
+	}
+	daemonArgs = append(daemonArgs, fmt.Sprintf("--name=%s", config.Name))
+	daemonArgs = append(daemonArgs, fmt.Sprintf("--remote=%s", config.Remote))
+	daemonArgs = append(daemonArgs, fmt.Sprintf("--pass=%s", config.Pass))
+	daemonArgs = append(daemonArgs, fmt.Sprintf("--user=%s", config.User))
 	daemonArgs = append(daemonArgs, fmt.Sprintf("--server-port=%d", serverPortFlag))
 	if autoExitFlag {
 		daemonArgs = append(daemonArgs, "--auto-exit=true")
@@ -94,8 +141,10 @@ func daemonize(cmd *cobra.Command, args []string) error {
 	writePID(pid)
 
 	fmt.Printf("opencode-piko daemon started (PID %d)\n", pid)
-	fmt.Printf("  Log: %s\n", logFilePath())
-	fmt.Printf("  Stop: opencode-piko stop\n")
+	fmt.Printf("  Name:       %s\n", config.Name)
+	printAccessInfo(config)
+	fmt.Printf("  Log:        %s\n", logFilePath())
+	fmt.Printf("  Stop:       opencode-piko stop\n")
 	return nil
 }
 

@@ -20,9 +20,9 @@ func GetOpencodeInstallDir() string {
 }
 
 func GetOpencodeBinPath() string {
-	binName := "opencode"
+	binName := "opencode-remote-fix"
 	if runtime.GOOS == "windows" {
-		binName = "opencode.exe"
+		binName = "opencode-remote-fix.exe"
 	}
 	return filepath.Join(GetOpencodeInstallDir(), binName)
 }
